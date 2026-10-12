@@ -1,0 +1,62 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Unit\PhpStan\Rule\TestAssertion;
+
+use Override;
+use PHPStan\Rules\Rule;
+use PHPStan\Testing\RuleTestCase;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Medium;
+use Toolkit\PhpStan\Rule\TestAssertion\NoRedundantAssertInstanceOfRule;
+use Toolkit\PhpStan\Support\TestClassScope;
+
+/**
+ * @extends RuleTestCase<NoRedundantAssertInstanceOfRule>
+ * @covers \Toolkit\PhpStan\Rule\TestAssertion\NoRedundantAssertInstanceOfRule
+ * @medium
+ */
+#[CoversClass(NoRedundantAssertInstanceOfRule::class)]
+#[Medium]
+final class NoRedundantAssertInstanceOfRuleTest extends RuleTestCase
+{
+    #[Override]
+    protected function getRule(): Rule
+    {
+        return new NoRedundantAssertInstanceOfRule(new TestClassScope());
+    }
+
+    public function testGetNodeTypeReturnsExpectedClass(): void
+    {
+        self::assertSame(\PhpParser\Node\Expr::class, $this->getRule()->getNodeType());
+    }
+
+    public function testProcessNodeRedundantAssertInstanceOfIsReported(): void
+    {
+        $this->analyse([__DIR__ . '/../../../../../tests/PhpStan/NoRedundantAssertInstanceOf/RedundantAssertInstanceOf.php'], [
+            [
+                'Remove redundant assertInstanceOf(): "Tests\PhpStan\NoRedundantAssertInstanceOf\Reporter" is already an instance of "Tests\PhpStan\NoRedundantAssertInstanceOf\ReporterInterface". Assert observable behavior instead.',
+                29,
+            ],
+            [
+                'Remove redundant assertInstanceOf(): "Tests\PhpStan\NoRedundantAssertInstanceOf\Reporter" is already an instance of "Tests\PhpStan\NoRedundantAssertInstanceOf\Reporter". Assert observable behavior instead.',
+                36,
+            ],
+            [
+                'Remove redundant assertInstanceOf(): "Tests\PhpStan\NoRedundantAssertInstanceOf\Reporter" is already an instance of "Tests\PhpStan\NoRedundantAssertInstanceOf\ReporterInterface". Assert observable behavior instead.',
+                43,
+            ],
+        ]);
+    }
+
+    public function testProcessNodeUsefulAssertInstanceOfIsNotReported(): void
+    {
+        $this->analyse([__DIR__ . '/../../../../../tests/PhpStan/NoRedundantAssertInstanceOf/AllowedAssertInstanceOf.php'], []);
+    }
+
+    public function testProcessNodeOutsideTestNamespaceIsNotReported(): void
+    {
+        $this->analyse([__DIR__ . '/../../../../../tests/PhpStan/NoRedundantAssertInstanceOf/NonTestClass.php'], []);
+    }
+}

@@ -1,0 +1,53 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Unit\PhpStan\Rule\Shared;
+
+use PHPStan\Rules\RuleErrorBuilder;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\TestCase;
+use Toolkit\PhpStan\Rule\Shared\LineOrderedErrors;
+
+/**
+ * @covers \Toolkit\PhpStan\Rule\Shared\LineOrderedErrors
+ */
+#[CoversClass(LineOrderedErrors::class)]
+final class LineOrderedErrorsTest extends TestCase
+{
+    public function testSortedOrdersErrorsByTheLineTheyPointAt(): void
+    {
+        $method = RuleErrorBuilder::message('method')->identifier('customRules.demo')->line(16)->build();
+        $constant = RuleErrorBuilder::message('constant')->identifier('customRules.demo')->line(10)->build();
+        $class = RuleErrorBuilder::message('class')->identifier('customRules.demo')->line(7)->build();
+
+        self::assertSame([$class, $constant, $method], (new LineOrderedErrors())->sorted([$class, $method, $constant]));
+    }
+
+    public function testSortedKeepsAnEmptyListEmpty(): void
+    {
+        self::assertSame([], (new LineOrderedErrors())->sorted([]));
+    }
+
+    public function testSortedUsesTheMessageToOrderErrorsOnTheSameLine(): void
+    {
+        $return = RuleErrorBuilder::message('return')->identifier('customRules.demo')->line(12)->build();
+        $parameter = RuleErrorBuilder::message('parameter')->identifier('customRules.demo')->line(12)->build();
+
+        self::assertSame([$parameter, $return], (new LineOrderedErrors())->sorted([$return, $parameter]));
+    }
+
+    public function testLineOfReadsTheLineOfAnError(): void
+    {
+        $error = RuleErrorBuilder::message('demo')->identifier('customRules.demo')->line(42)->build();
+
+        self::assertSame(42, (new LineOrderedErrors())->lineOf($error));
+    }
+
+    public function testLineOfReadsZeroForAnErrorWithoutALine(): void
+    {
+        $error = RuleErrorBuilder::message('demo')->identifier('customRules.demo')->build();
+
+        self::assertSame(LineOrderedErrors::NO_LINE, (new LineOrderedErrors())->lineOf($error));
+    }
+}

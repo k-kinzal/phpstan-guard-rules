@@ -1,0 +1,141 @@
+# NoHelperMethodInTestClassRule
+
+| Property | Value |
+|----------|-------|
+| Identifier | `customRules.testClassNonOverrideMethod` |
+| Scope | Test classes in restricted namespaces |
+| Rector | Unavailable |
+| Configurable | Yes (namespace prefixes) |
+
+## What It Detects
+
+Reports methods in test classes that are not:
+
+- **Test methods**: methods starting with `test` or annotated with `#[Test]`
+- **Data providers**: methods starting with `provider`
+- **Framework overrides**: methods that override a parent class method (abstract implementations or `#[Override]`-annotated overrides)
+
+```php
+namespace Tests\Unit\Service;
+
+final class UserServiceTest extends TestCase
+{
+    public function testCreate(): void { ... }
+
+    public function providerInvalidEmails(): array { ... }
+
+    #[Override]
+    protected function setUp(): void { ... }
+
+    // ERROR: Move method buildUser() out of Tests\Unit\Service\UserServiceTest or make it a test, data provider, or framework override.
+    protected function buildUser(string $name = 'Alice'): User
+    {
+        return new User($name, 'alice@example.com', 30);
+    }
+
+    // ERROR: Move method assertUserIsValid() out of Tests\Unit\Service\UserServiceTest or make it a test, data provider, or framework override.
+    protected function assertUserIsValid(User $user): void
+    {
+        self::assertNotEmpty($user->name());
+        self::assertNotEmpty($user->email());
+    }
+}
+```
+
+## Why This Is an Error
+
+Test classes should have a flat, predictable structure: test methods, data providers, and framework lifecycle overrides. Any other method is a helper that introduces problems:
+
+1. **Shared abstractions reduce readability**: A test should be a self-contained specification. When setup or assertions are hidden behind helper methods, the reader must navigate multiple methods to understand one test case.
+
+2. **Helpers grow into frameworks**: Helper methods tend to accumulate parameters, default values, and conditional logic over time. Eventually the test class becomes a mini-framework that requires its own documentation.
+
+3. **Hides what each test actually needs**: A `buildUser()` helper with defaults obscures which parameters matter for a specific test case. Inline construction makes each test's requirements explicit.
+
+## How to Fix
+
+### Option 1: Inline into test methods
+
+```php
+final class UserServiceTest extends TestCase
+{
+    public function testCreate(): void
+    {
+        $user = new User('Alice', 'alice@example.com', 30);
+        $service = new UserService();
+
+        $service->create($user);
+
+        self::assertNotEmpty($user->name());
+        self::assertNotEmpty($user->email());
+    }
+}
+```
+
+### Option 2: Use a real library boundary
+
+For genuinely reusable setup logic, use an existing library or create an independent internal library outside the `Tests` namespace. Give the class a domain-specific API instead of placing it in a generic support/helper namespace:
+
+```php
+namespace Acme\TestingFixtures\User;
+
+final class ExampleUser
+{
+    public static function alice(): User
+    {
+        return new User('Alice', 'alice@example.com', 30);
+    }
+}
+```
+
+```php
+// tests/Unit/Service/UserServiceTest.php
+final class UserServiceTest extends TestCase
+{
+    public function testCreate(): void
+    {
+        $user = ExampleUser::alice();
+        // ...
+    }
+}
+```
+
+### Option 3: Use data providers for parameterized assertions
+
+```php
+final class UserServiceTest extends TestCase
+{
+    public static function providerValidUsers(): array
+    {
+        return [
+            'basic user' => [new User('Alice', 'alice@example.com', 30)],
+            'minimal user' => [new User('B', 'b@b.com', 1)],
+        ];
+    }
+
+    #[DataProvider('providerValidUsers')]
+    public function testUserIsValid(User $user): void
+    {
+        self::assertNotEmpty($user->name());
+        self::assertNotEmpty($user->email());
+    }
+}
+```
+
+## Configuration
+
+Customize which namespaces are considered restricted:
+
+```neon
+parameters:
+    toolkit:
+        restrictedTestNamespacePrefixes:
+            - 'Tests\Unit'
+            - 'Tests\Integration'
+```
+
+## Rector
+
+**Unavailable** — no automatic transformation is provided.
+
+Helper extraction or inlining requires deciding what the test should exercise and keeping the assertions intact.

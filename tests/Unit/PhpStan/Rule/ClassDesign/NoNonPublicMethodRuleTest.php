@@ -1,0 +1,98 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Unit\PhpStan\Rule\ClassDesign;
+
+use Override;
+use PHPStan\Rules\Rule;
+use PHPStan\Testing\RuleTestCase;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Medium;
+use Toolkit\PhpStan\Rule\ClassDesign\NoNonPublicMethodRule;
+
+/**
+ * @extends RuleTestCase<NoNonPublicMethodRule>
+ * @covers \Toolkit\PhpStan\Rule\ClassDesign\NoNonPublicMethodRule
+ * @medium
+ */
+#[CoversClass(NoNonPublicMethodRule::class)]
+#[Medium]
+final class NoNonPublicMethodRuleTest extends RuleTestCase
+{
+    #[Override]
+    protected function getRule(): Rule
+    {
+        return new NoNonPublicMethodRule();
+    }
+
+    public function testGetNodeTypeReturnsExpectedClass(): void
+    {
+        self::assertSame(\PhpParser\Node\Stmt\ClassLike::class, $this->getRule()->getNodeType());
+    }
+
+    public function testPrivateMethodViolationIsReported(): void
+    {
+        $this->analyse([__DIR__ . '/../../../../../tests/PhpStan/NoNonPublicMethod/WithPrivateMethod.php'], [
+            [
+                'Move private method helper() out of Tests\\PhpStan\\NoNonPublicMethod\\WithPrivateMethod into a focused collaborator, or make it public only if it is part of this type\'s API.',
+                14,
+            ],
+        ]);
+    }
+
+    public function testProtectedMethodViolationIsReported(): void
+    {
+        $this->analyse([__DIR__ . '/../../../../../tests/PhpStan/NoNonPublicMethod/WithProtectedMethod.php'], [
+            [
+                'Move protected method helper() out of concrete class Tests\\PhpStan\\NoNonPublicMethod\\WithProtectedMethod, or put the extension point on an abstract class, trait, or override method.',
+                14,
+            ],
+        ]);
+    }
+
+    public function testPrivateConstructorIsNotReported(): void
+    {
+        $this->analyse([__DIR__ . '/../../../../../tests/PhpStan/NoNonPublicMethod/WithPrivateConstructor.php'], []);
+    }
+
+    public function testProtectedConstructorInConcreteClassIsNotReported(): void
+    {
+        $this->analyse([__DIR__ . '/../../../../../tests/PhpStan/NoNonPublicMethod/WithProtectedConstructor.php'], []);
+    }
+
+    public function testAllowsProtectedMethodInAbstractClass(): void
+    {
+        $this->analyse([__DIR__ . '/../../../../../tests/PhpStan/NoNonPublicMethod/AbstractClassWithProtectedMethod.php'], []);
+    }
+
+    public function testProcessNodeProtectedMethodInTraitIsNotReported(): void
+    {
+        $this->analyse([__DIR__ . '/../../../../../tests/PhpStan/NoNonPublicMethod/TraitWithProtectedMethod.php'], []);
+    }
+
+    public function testHasOverrideAttributeAllowsProtectedOverride(): void
+    {
+        $this->analyse([__DIR__ . '/../../../../../tests/PhpStan/NoNonPublicMethod/OverrideProtectedMethod.php'], []);
+    }
+
+    public function testResolveClassNameInPrivateMethodViolationForAbstractClass(): void
+    {
+        $this->analyse([__DIR__ . '/../../../../../tests/PhpStan/NoNonPublicMethod/AbstractClassWithPrivateMethod.php'], [
+            [
+                'Move private method helper() out of Tests\\PhpStan\\NoNonPublicMethod\\AbstractClassWithPrivateMethod into a focused collaborator, or make it public only if it is part of this type\'s API.',
+                14,
+            ],
+        ]);
+    }
+
+    public function testProcessNodePrivateMethodInTraitIsReported(): void
+    {
+        $this->analyse([__DIR__ . '/../../../../../tests/PhpStan/NoNonPublicMethod/TraitWithPrivateMethod.php'], [
+            [
+                'Move private method helper() out of Tests\\PhpStan\\NoNonPublicMethod\\TraitWithPrivateMethod into a focused collaborator, or make it public only if it is part of this type\'s API.',
+                14,
+            ],
+        ]);
+    }
+}

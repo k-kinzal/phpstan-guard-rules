@@ -1,0 +1,49 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Unit\PhpStan\Rule\Type\Rule;
+
+use Override;
+use PHPStan\Rules\Rule;
+use PHPStan\Testing\RuleTestCase;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Medium;
+use PHPUnit\Framework\Attributes\UsesClass;
+use Toolkit\PhpStan\Rule\PhpDoc\RulePhpDocParser;
+use Toolkit\PhpStan\Rule\Type\MixedLocalPhpDocErrorCollector;
+use Toolkit\PhpStan\Rule\Type\Rule\ForbidInternalMixedLocalVarRule;
+
+/**
+ * @extends RuleTestCase<ForbidInternalMixedLocalVarRule>
+ * @covers \Toolkit\PhpStan\Rule\Type\Rule\ForbidInternalMixedLocalVarRule
+ * @uses \Toolkit\PhpStan\Rule\PhpDoc\RulePhpDocParser
+ * @uses \Toolkit\PhpStan\Rule\Type\MixedLocalPhpDocErrorCollector
+ * @medium
+ */
+#[CoversClass(ForbidInternalMixedLocalVarRule::class)]
+#[UsesClass(MixedLocalPhpDocErrorCollector::class)]
+#[UsesClass(RulePhpDocParser::class)]
+#[Medium]
+final class ForbidInternalMixedLocalVarRuleTest extends RuleTestCase
+{
+    #[Override]
+    protected function getRule(): Rule
+    {
+        return new ForbidInternalMixedLocalVarRule();
+    }
+
+    public function testGetNodeTypeReturnsStatementNode(): void
+    {
+        self::assertSame(\PhpParser\Node\Stmt::class, $this->getRule()->getNodeType());
+    }
+
+    public function testProcessNodeReportsLocalVarMixed(): void
+    {
+        $guidance = ': this declaration is internal or scope-restricted, so it must state a deterministic PHPStan type. Validate arbitrary input at an unrestricted public boundary, then pass the narrowed type inward.';
+        $this->analyse([__DIR__ . '/../../../../../../tests/PhpStan/ForbidInternalMixedType/ForbiddenMixedTypes.php'], [
+            ['Replace concrete mixed type "mixed" in local @var $local of Tests\PhpStan\ForbidInternalMixedType\RestrictedTypes::transform()' . $guidance, 25],
+            ['Replace concrete mixed type "mixed" in local @var $item of file scope' . $guidance, 60],
+        ]);
+    }
+}

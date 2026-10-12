@@ -1,0 +1,76 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Unit\PhpStan\Rule\TestAssertion;
+
+use Override;
+use PHPStan\Rules\Rule;
+use PHPStan\Testing\RuleTestCase;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Medium;
+use Toolkit\PhpStan\Rule\TestAssertion\PhpUnitMockApiRule;
+use Toolkit\PhpStan\Support\TestClassScope;
+
+/**
+ * @extends RuleTestCase<PhpUnitMockApiRule>
+ * @covers \Toolkit\PhpStan\Rule\TestAssertion\PhpUnitMockApiRule
+ * @medium
+ */
+#[CoversClass(PhpUnitMockApiRule::class)]
+#[Medium]
+final class PhpUnitMockApiRuleTest extends RuleTestCase
+{
+    #[Override]
+    protected function getRule(): Rule
+    {
+        return new PhpUnitMockApiRule(
+            self::createReflectionProvider(),
+            new TestClassScope(),
+        );
+    }
+
+    public function testGetNodeTypeReturnsExpectedClass(): void
+    {
+        self::assertSame(\PhpParser\Node\Expr::class, $this->getRule()->getNodeType());
+    }
+
+    public function testProcessNodeProhibitedMockApiIsReported(): void
+    {
+        $this->analyse([__DIR__ . '/../../../../../tests/PhpStan/PhpUnitMockApi/ProhibitedApi.php'], [
+            [
+                'Use createMock(FooInterface::class) or createStub(FooInterface::class) instead of PHPUnit getMockBuilder().',
+                18,
+            ],
+            [
+                'Use createMock(FooInterface::class) or createStub(FooInterface::class) instead of PHPUnit createPartialMock().',
+                23,
+            ],
+        ]);
+    }
+
+    public function testProcessNodeCreateMockWithConcreteClassIsReported(): void
+    {
+        $this->analyse([__DIR__ . '/../../../../../tests/PhpStan/PhpUnitMockApi/ConcreteClassMock.php'], [
+            [
+                'Pass an interface class-string to PHPUnit createMock(); "Tests\PhpStan\PhpUnitMockApi\ConcreteService" is not an interface.',
+                20,
+            ],
+        ]);
+    }
+
+    public function testProcessNodeCreateMockWithInterfaceIsNotReported(): void
+    {
+        $this->analyse([__DIR__ . '/../../../../../tests/PhpStan/PhpUnitMockApi/InterfaceMock.php'], []);
+    }
+
+    public function testProcessNodeNonLiteralClassStringIsReported(): void
+    {
+        $this->analyse([__DIR__ . '/../../../../../tests/PhpStan/PhpUnitMockApi/NonLiteral.php'], [
+            [
+                'Pass an interface class-string literal to PHPUnit createMock(), e.g. DependencyInterface::class. Do not pass variables or plain strings.',
+                14,
+            ],
+        ]);
+    }
+}

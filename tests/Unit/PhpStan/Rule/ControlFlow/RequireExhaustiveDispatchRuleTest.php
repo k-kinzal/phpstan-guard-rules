@@ -1,0 +1,134 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Unit\PhpStan\Rule\ControlFlow;
+
+use Override;
+use PHPStan\Rules\Rule;
+use PHPStan\Testing\RuleTestCase;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Medium;
+use PHPUnit\Framework\Attributes\UsesClass;
+use Toolkit\PhpStan\Rule\ControlFlow\ClosedTypeVariants;
+use Toolkit\PhpStan\Rule\ControlFlow\DispatchInspector;
+use Toolkit\PhpStan\Rule\ControlFlow\DispatchSubjectResolver;
+use Toolkit\PhpStan\Rule\ControlFlow\RequireExhaustiveDispatchErrorBuilder;
+use Toolkit\PhpStan\Rule\ControlFlow\RequireExhaustiveDispatchRule;
+use Toolkit\PhpStan\Rule\ControlFlow\UnhandledVariantFinder;
+
+/**
+ * @extends RuleTestCase<RequireExhaustiveDispatchRule>
+ * @covers \Toolkit\PhpStan\Rule\ControlFlow\RequireExhaustiveDispatchRule
+ * @uses \Toolkit\PhpStan\Rule\ControlFlow\ClosedTypeVariants
+ * @uses \Toolkit\PhpStan\Rule\ControlFlow\DispatchInspector
+ * @uses \Toolkit\PhpStan\Rule\ControlFlow\DispatchSubjectResolver
+ * @uses \Toolkit\PhpStan\Rule\ControlFlow\RequireExhaustiveDispatchErrorBuilder
+ * @uses \Toolkit\PhpStan\Rule\ControlFlow\UnhandledVariantFinder
+ * @medium
+ */
+#[CoversClass(RequireExhaustiveDispatchRule::class)]
+#[UsesClass(ClosedTypeVariants::class)]
+#[UsesClass(DispatchInspector::class)]
+#[UsesClass(DispatchSubjectResolver::class)]
+#[UsesClass(RequireExhaustiveDispatchErrorBuilder::class)]
+#[UsesClass(UnhandledVariantFinder::class)]
+#[Medium]
+final class RequireExhaustiveDispatchRuleTest extends RuleTestCase
+{
+    #[Override]
+    protected function getRule(): Rule
+    {
+        return new RequireExhaustiveDispatchRule();
+    }
+
+    public function testGetNodeTypeReturnsExpectedClass(): void
+    {
+        self::assertSame(\PhpParser\Node::class, $this->getRule()->getNodeType());
+    }
+
+    public function testProcessNodeReportsSwitchOverEnum(): void
+    {
+        $this->analyse([__DIR__ . '/../../../../../tests/PhpStan/RequireExhaustiveDispatch/EnumSwitchDispatch.php'], [
+            [
+                'Switch statement does not handle Tests\\PhpStan\\RequireExhaustiveDispatch\\Suit::Spades, Tests\\PhpStan\\RequireExhaustiveDispatch\\Suit::Clubs. Write a "case" for each of those values: the subject holds a closed set of values and this switch has no "default", so those fall through it unhandled.',
+                11,
+            ],
+            [
+                'Switch statement sends Tests\\PhpStan\\RequireExhaustiveDispatch\\Suit::Diamonds, Tests\\PhpStan\\RequireExhaustiveDispatch\\Suit::Spades, Tests\\PhpStan\\RequireExhaustiveDispatch\\Suit::Clubs to its "default" case. Write a "case" for each of those values so that a value added to the closed type is reported here instead of silently taking "default".',
+                23,
+            ],
+            [
+                'Switch statement sends Tests\\PhpStan\\RequireExhaustiveDispatch\\Suit::Diamonds, Tests\\PhpStan\\RequireExhaustiveDispatch\\Suit::Spades, Tests\\PhpStan\\RequireExhaustiveDispatch\\Suit::Clubs to its "default" case. Write a "case" for each of those values so that a value added to the closed type is reported here instead of silently taking "default".',
+                70,
+            ],
+        ]);
+    }
+
+    public function testProcessNodeReportsMatchOverEnum(): void
+    {
+        $this->analyse([__DIR__ . '/../../../../../tests/PhpStan/RequireExhaustiveDispatch/EnumMatchDispatch.php'], [
+            [
+                'Match expression sends Tests\\PhpStan\\RequireExhaustiveDispatch\\Suit::Spades, Tests\\PhpStan\\RequireExhaustiveDispatch\\Suit::Clubs to its "default" arm. Write an arm for each of those values so that a value added to the closed type is reported here instead of silently taking "default".',
+                18,
+            ],
+            [
+                'Match expression sends Tests\\PhpStan\\RequireExhaustiveDispatch\\Suit::Clubs to its "default" arm. Write an arm for each of those values so that a value added to the closed type is reported here instead of silently taking "default".',
+                46,
+            ],
+            [
+                'Match expression sends Tests\\PhpStan\\RequireExhaustiveDispatch\\Suit::Diamonds, Tests\\PhpStan\\RequireExhaustiveDispatch\\Suit::Spades, Tests\\PhpStan\\RequireExhaustiveDispatch\\Suit::Clubs to its "default" arm. Write an arm for each of those values so that a value added to the closed type is reported here instead of silently taking "default".',
+                69,
+            ],
+            [
+                'Match expression sends Tests\\PhpStan\\RequireExhaustiveDispatch\\Suit::Diamonds, Tests\\PhpStan\\RequireExhaustiveDispatch\\Suit::Spades, Tests\\PhpStan\\RequireExhaustiveDispatch\\Suit::Clubs to its "default" arm. Write an arm for each of those values so that a value added to the closed type is reported here instead of silently taking "default".',
+                77,
+            ],
+            [
+                'Match expression sends Tests\\PhpStan\\RequireExhaustiveDispatch\\Suit::Diamonds, Tests\\PhpStan\\RequireExhaustiveDispatch\\Suit::Spades, Tests\\PhpStan\\RequireExhaustiveDispatch\\Suit::Clubs to its "default" arm. Write an arm for each of those values so that a value added to the closed type is reported here instead of silently taking "default".',
+                85,
+            ],
+            [
+                'Match expression sends Tests\\PhpStan\\RequireExhaustiveDispatch\\Suit::Diamonds, Tests\\PhpStan\\RequireExhaustiveDispatch\\Suit::Spades, Tests\\PhpStan\\RequireExhaustiveDispatch\\Suit::Clubs to its "default" arm. Write an arm for each of those values so that a value added to the closed type is reported here instead of silently taking "default".',
+                95,
+            ],
+        ]);
+    }
+
+    public function testProcessNodeReportsDispatchOverClassUnion(): void
+    {
+        $this->analyse([__DIR__ . '/../../../../../tests/PhpStan/RequireExhaustiveDispatch/ShapeDispatch.php'], [
+            [
+                'Match expression sends \'Tests\\\\PhpStan\\\\RequireExhaustiveDispatch\\\\Triangle\' to its "default" arm. Write an arm for each of those values so that a value added to the closed type is reported here instead of silently taking "default".',
+                54,
+            ],
+        ]);
+    }
+
+    public function testProcessNodeReportsDispatchOverConstantSubject(): void
+    {
+        $this->analyse([__DIR__ . '/../../../../../tests/PhpStan/RequireExhaustiveDispatch/ConstantSubjectDispatch.php'], [
+            [
+                'Match expression sends \'safe\', \'dry\' to its "default" arm. Write an arm for each of those values so that a value added to the closed type is reported here instead of silently taking "default".',
+                20,
+            ],
+            [
+                'Match expression sends false to its "default" arm. Write an arm for each of those values so that a value added to the closed type is reported here instead of silently taking "default".',
+                41,
+            ],
+            [
+                'Match expression sends 2, 3 to its "default" arm. Write an arm for each of those values so that a value added to the closed type is reported here instead of silently taking "default".',
+                52,
+            ],
+            [
+                'Match expression sends \'diamonds\', \'spades\', \'clubs\' to its "default" arm. Write an arm for each of those values so that a value added to the closed type is reported here instead of silently taking "default".',
+                60,
+            ],
+        ]);
+    }
+
+    public function testProcessNodeIgnoresDispatchOverOpenSubject(): void
+    {
+        $this->analyse([__DIR__ . '/../../../../../tests/PhpStan/RequireExhaustiveDispatch/OpenSubjectDispatch.php'], []);
+    }
+}

@@ -1,0 +1,46 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Unit\PhpStan\Rule\Type;
+
+use PHPStan\Type\ArrayType;
+use PHPStan\Type\IntegerType;
+use PHPStan\Type\MixedType;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\TestCase;
+use Toolkit\PhpStan\Rule\Type\ConcreteMixedTypeInspector;
+
+/**
+ * @covers \Toolkit\PhpStan\Rule\Type\ConcreteMixedTypeInspector
+ */
+#[CoversClass(ConcreteMixedTypeInspector::class)]
+final class ConcreteMixedTypeInspectorTest extends TestCase
+{
+    public function testContainsFindsOnlyExplicitConcreteMixed(): void
+    {
+        $inspector = new ConcreteMixedTypeInspector();
+
+        self::assertTrue($inspector->contains(new MixedType(true)));
+        self::assertTrue($inspector->contains(new ArrayType(new IntegerType(), new MixedType(true))));
+        self::assertFalse($inspector->contains(new MixedType(false)));
+        self::assertFalse($inspector->contains(new IntegerType()));
+    }
+
+    public function testContainsIncludingImplicitFindsBothKindsOfConcreteMixed(): void
+    {
+        $inspector = new ConcreteMixedTypeInspector();
+
+        self::assertTrue($inspector->containsIncludingImplicit(new MixedType(true)));
+        self::assertTrue($inspector->containsIncludingImplicit(new MixedType(false)));
+        self::assertTrue($inspector->containsIncludingImplicit(new ArrayType(new IntegerType(), new MixedType(false))));
+        self::assertFalse($inspector->containsIncludingImplicit(new IntegerType()));
+    }
+
+    public function testDescribeNamesTheCompleteContainingType(): void
+    {
+        $type = new ArrayType(new IntegerType(), new MixedType(true));
+
+        self::assertSame('array<int, mixed>', (new ConcreteMixedTypeInspector())->describe($type));
+    }
+}
