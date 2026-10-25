@@ -20,13 +20,14 @@ parametersSchema:
         noRedundantAssertInstanceOf: structure([enabled: bool()])
         noBrokenCodeExpectation: structure([enabled: bool()])
         noTraitUseInTestClass: structure([enabled: bool()])
-        srcUnitTestPair: structure([enabled: bool()])
+        classPair: structure([enabled: bool()])
         requirePhpDocOnPublicApi: structure([enabled: bool()])
         requireExampleOnPublicApi: structure([enabled: bool()])
         forbidSingleLinePhpDoc: structure([enabled: bool()])
         forbidNonDocComment: structure([enabled: bool()])
         forbidDescriptivePhpDocInTestClass: structure([enabled: bool()])
         testNamingConvention: structure([enabled: bool()])
+        propertyTestConvention: structure([enabled: bool()])
         forbidEmptyCatch: structure([enabled: bool()])
         requireThrowsTagOnDirectThrow: structure([enabled: bool()])
         requireExceptionChaining: structure([enabled: bool()])
@@ -40,7 +41,13 @@ parametersSchema:
         testNamespacePrefixes: listOf(string())
         restrictedTestNamespacePrefixes: listOf(string())
         visibilityExemptNamespacePrefixes: listOf(string())
-        srcUnitTestPairExcludePatterns: listOf(string())
+        classPairProjectRoot: string()
+        classPairs: listOf(structure([
+            from: string()
+            to: string()
+            ?exclude: listOf(string())
+        ]))
+        classPairExclude: listOf(string())
         srcMarker: string()
         unitTestMarker: string()
         forbiddenTermsByPath: arrayOf(listOf(string()))
@@ -109,7 +116,7 @@ parameters:
             enabled: %toolkit.allRules%
         noTraitUseInTestClass:
             enabled: %toolkit.allRules%
-        srcUnitTestPair:
+        classPair:
             enabled: %toolkit.allRules%
         requirePhpDocOnPublicApi:
             enabled: %toolkit.allRules%
@@ -120,6 +127,8 @@ parameters:
         forbidNonDocComment:
             enabled: %toolkit.allRules%
         forbidDescriptivePhpDocInTestClass:
+            enabled: %toolkit.allRules%
+        propertyTestConvention:
             enabled: %toolkit.allRules%
         testNamingConvention:
             enabled: %toolkit.allRules%
@@ -148,9 +157,15 @@ parameters:
         restrictedTestNamespacePrefixes:
             - 'Tests\Unit'
             - 'Tests\Integration'
+            - 'Tests\Property'
         visibilityExemptNamespacePrefixes:
             - 'Tests'
-        srcUnitTestPairExcludePatterns: []
+        classPairProjectRoot: %currentWorkingDirectory%
+        classPairs:
+            -
+                from: '${src}\{name}'
+                to: '${tests/Unit}\{name}Test'
+        classPairExclude: []
         srcMarker: '/src/'
         unitTestMarker: '/tests/Unit/'
         forbiddenTermsByPath: []
@@ -334,12 +349,12 @@ services:
         arguments:
             testClassScope: @toolkit.support.testClassScope
 
-    toolkit.rule.srcUnitTestPair:
-        class: Toolkit\PhpStan\Rule\SrcUnitTestPairRule
+    toolkit.rule.classPair:
+        class: Toolkit\PhpStan\Rule\ClassPair\RequireClassPairRule
         arguments:
-            excludePatterns: %toolkit.srcUnitTestPairExcludePatterns%
-            srcMarker: %toolkit.srcMarker%
-            unitTestMarker: %toolkit.unitTestMarker%
+            classPairProjectRoot: %toolkit.classPairProjectRoot%
+            classPairs: %toolkit.classPairs%
+            classPairExclude: %toolkit.classPairExclude%
 
     toolkit.rule.requirePhpDocOnPublicApi:
         class: Toolkit\PhpStan\Rule\RequirePhpDocOnPublicApiRule
@@ -361,6 +376,14 @@ services:
         class: Toolkit\PhpStan\Rule\ForbidDescriptivePhpDocInTestClassRule
         arguments:
             restrictedTestNamespacePrefixes: %toolkit.restrictedTestNamespacePrefixes%
+
+    toolkit.rule.propertyTestConvention:
+        class: Toolkit\PhpStan\Rule\TestClass\PropertyTestConventionRule
+        arguments:
+            testClassScope: @toolkit.support.testClassScope
+
+    toolkit.rule.propertyTestDeclaration:
+        class: Toolkit\PhpStan\Rule\TestClass\PropertyTestDeclarationRule
 
     toolkit.rule.testNamingConvention:
         class: Toolkit\PhpStan\Rule\TestNamingConventionRule
@@ -523,8 +546,8 @@ conditionalTags:
         phpstan.rules.rule: %toolkit.noBrokenCodeExpectation.enabled%
     Toolkit\PhpStan\Rule\NoTraitUseInTestClassRule:
         phpstan.rules.rule: %toolkit.noTraitUseInTestClass.enabled%
-    Toolkit\PhpStan\Rule\SrcUnitTestPairRule:
-        phpstan.rules.rule: %toolkit.srcUnitTestPair.enabled%
+    Toolkit\PhpStan\Rule\ClassPair\RequireClassPairRule:
+        phpstan.rules.rule: %toolkit.classPair.enabled%
     Toolkit\PhpStan\Rule\RequirePhpDocOnPublicApiRule:
         phpstan.rules.rule: %toolkit.requirePhpDocOnPublicApi.enabled%
     Toolkit\PhpStan\Rule\RequireExampleOnPublicApiRule:
@@ -535,6 +558,10 @@ conditionalTags:
         phpstan.rules.rule: %toolkit.forbidNonDocComment.enabled%
     Toolkit\PhpStan\Rule\ForbidDescriptivePhpDocInTestClassRule:
         phpstan.rules.rule: %toolkit.forbidDescriptivePhpDocInTestClass.enabled%
+    Toolkit\PhpStan\Rule\TestClass\PropertyTestConventionRule:
+        phpstan.rules.rule: %toolkit.propertyTestConvention.enabled%
+    Toolkit\PhpStan\Rule\TestClass\PropertyTestDeclarationRule:
+        phpstan.rules.rule: %toolkit.propertyTestConvention.enabled%
     Toolkit\PhpStan\Rule\TestNamingConventionRule:
         phpstan.rules.rule: %toolkit.testNamingConvention.enabled%
     Toolkit\PhpStan\Rule\ExceptionHandling\ForbidEmptyCatchRule:
